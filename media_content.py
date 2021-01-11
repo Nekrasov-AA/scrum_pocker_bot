@@ -1,5 +1,5 @@
 from emoji import *
-from telegram import InlineKeyboardButton
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 button0 = emojize(':hot_beverage:', use_aliases=True)
 button1 = emojize(':keycap_1:', use_aliases=True)
@@ -20,6 +20,8 @@ keyboard = [
     [InlineKeyboardButton(button5, callback_data='8')],
     [InlineKeyboardButton(button6, callback_data='End voting')],
 ]
+
+rating_keyboard = InlineKeyboardMarkup(keyboard)
 
 icons = [
     emojize(':comet:', use_aliases=True),
