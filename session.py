@@ -11,9 +11,12 @@ from settings import JIRA_LINK
 
 chat_sessions_mapping: Dict[str, 'Session'] = {}  # маппинг чат -- сессия голосвания в чате
 
+
 class SessionStatus(Enum):
     ongoing = 1
     finished = 2
+    closed = 3
+
 
 class Session:
     def __init__(self, update: Update):
@@ -38,9 +41,11 @@ class Session:
     def start_voting(self):
         # инициализируем список голосов пользователй
         self.user_votes = {user: None for user in self.users}
+        self.user_votes_placeholders = {}
         self.send_voting_message()
 
     def reset(self, new_update):
+        self.close_voting()
         self.status = SessionStatus.ongoing
         self.update = new_update
         self.ticket = new_update.message.text
@@ -49,11 +54,14 @@ class Session:
     def set_user_data(self, user, vote: CallbackQuery):
         self.user_votes[user] = vote
 
+    def close_voting(self):
+        self.status = SessionStatus.closed
+        self.send_finish_voting_message()
+
     def process(self, query: CallbackQuery):
         # TODO расхардкодить
         if query.data == 'End voting':
-            self.status = SessionStatus.finished
-            self.send_finish_voting_message()
+            self.close_voting()
             return
 
         logging.debug(f'set user data {query.from_user.username, query.data, query.id}')
@@ -65,18 +73,30 @@ class Session:
         else:
             self.update_voting_message()
 
-    def get_vote_value(self, vote:Optional[CallbackQuery]) -> str:
-        if not vote or self.status is SessionStatus.ongoing:
-            return choice(icons)
+    def get_vote_value(self, vote: Optional[CallbackQuery]) -> str:
+        if self.status is SessionStatus.ongoing:
+            if vote:
+                placeholder = self.user_votes_placeholders.get(vote.from_user.username, choice(icons))
+                self.user_votes_placeholders[vote.from_user.username] = placeholder
+                return placeholder
+            else:
+                return '-'
         else:
             return vote.data
 
-
     def get_poll_list_message(self) -> str:
-        return '\n'.join([f'{user}: {self.get_vote_value(vote)}' for user, vote in self.user_votes.items()])
+        return '\n'.join(
+            # TODO заменить user c username на firstname
+            # тут надо учесть что пока он не проголосовал мы не знаем его данных, мб надо как-то регать пользователей
+            [f'{user}: {self.get_vote_value(vote)}'
+             for user, vote in self.user_votes.items()]
+        )
 
     def send_finish_voting_message(self):
-        self.voting_message.edit_text(text=f'Voting ended for {self.ticket}\n{self.get_poll_list_message()}')
+        self.voting_message.edit_text(
+            text=f'Voting ended for {self.ticket}\n{self.get_poll_list_message()}',
+            reply_markup=rating_keyboard if self.status is SessionStatus.finished else None
+        )
 
     def send_voting_message(self):
         self.voting_message = self.update.message.reply_text(
