@@ -1,40 +1,41 @@
 from telegram import CallbackQuery, Update
+from telegram.ext import ContextTypes
 
 from session import chat_sessions_mapping, Session
 
 
-def greet_user(update, context):
+async def greet_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print('Bot has been started')
-    update.message.reply_text('Hi! For voting type /poll, Jira ticket and participants')
+    await update.message.reply_text('Hi! For voting type /poll, Jira ticket and participants')
 
 
-def display_help(update, context):
-    update.message.reply_text('To vote, enter the command /poll, Jira ticket and participants')
+async def display_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text('To vote, enter the command /poll, Jira ticket and participants')
 
 
-def start_poll(update, context):
-    '''
-    обработчик нового голосования
-    '''
+async def start_poll(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Handler for new voting session
+    """
     chat_id = update.message.chat_id
-    chat_sessions_mapping[chat_id] = Session(update)
+    chat_sessions_mapping[chat_id] = await Session.create(update)
 
 
-def next_poll(update, context):
-    '''
-    обработчик следующего голосвания
-    '''
+async def next_poll(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Handler for next voting session
+    """
     chat_id = update.message.chat_id
 
     if chat_id not in chat_sessions_mapping:
-        update.message.reply_text('Voting has not yet taken place.')
+        await update.message.reply_text('Voting has not yet taken place.')
         return
 
     session = chat_sessions_mapping[chat_id]
-    session.reset(update)
+    await session.reset(update)
 
-def vote_handler(update:Update, context) -> None:
+async def vote_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query: CallbackQuery = update.callback_query
     chat_id = query.message.chat_id
     session = chat_sessions_mapping[chat_id]
-    session.process(query)
+    await session.process(query)

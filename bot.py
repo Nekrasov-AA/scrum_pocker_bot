@@ -1,17 +1,18 @@
 import logging
 
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler
+from telegram.ext import filters
 
 from commands import commands
 from handlers import vote_handler, next_poll
 
 with open('API_KEY', 'r') as f:
-    API_KEY = f.read()
+    API_KEY = f.read().strip()
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-# TODO глобальные переменные должны иметь норм имена
+# TODO global variables should have proper names
 # sessions = {}
 
 voters = {}
@@ -23,22 +24,23 @@ archive_users = []
 global_users = []
 
 
-def main():
-    mybot = Updater(API_KEY, use_context=True)
+async def main():
+    # Create the Application
+    app = Application.builder().token(API_KEY).build()
 
-    dp = mybot.dispatcher
-
-    # TODO сделать отдельный словарь с коммандами и добавлять в диспетчер оттуда
+    # TODO create separate dictionary for commands and add them to dispatcher from there
     for command, handler in commands.items():
-        dp.add_handler(CommandHandler(command, handler))
+        app.add_handler(CommandHandler(command, handler))
 
-    dp.add_handler(MessageHandler(Filters.text, next_poll))
-    dp.add_handler(CallbackQueryHandler(vote_handler))
+    app.add_handler(MessageHandler(filters.TEXT, next_poll))
+    app.add_handler(CallbackQueryHandler(vote_handler))
 
     logging.info('Bot has been started')
-    mybot.start_polling()
-    mybot.idle()
+    
+    # Start the bot
+    await app.run_polling()
 
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+    asyncio.run(main())
